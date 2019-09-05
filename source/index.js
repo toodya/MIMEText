@@ -12,6 +12,8 @@ function MIMEMessage() {
   this.boundaryNumber = 0
   this.boundaryMixed = null
   this.timestamp = Date.now()
+  this.headers = {}
+  this.messageID = null
 }
 
 MIMEMessage.prototype.utility = utility
@@ -150,7 +152,7 @@ MIMEMessage.prototype.setAttachments = function setAttachments(attachments) {
   }
 
   if (!this.utility.isEmpty(lines)) {
-    this.attachments = lines.join('\n')
+    this.attachments = lines.join('\r\n')
   }
 
   return this.attachments
@@ -167,35 +169,15 @@ MIMEMessage.prototype.setMessage = function setMessage(msg) {
     'Content-Type: ' + msgType + '; charset="utf-8"',
     '',
     msg
-  ].join('\n')
+  ].join('\r\n')
 
   return this.rawMessage
 }
 
 MIMEMessage.prototype.asRaw = function asRaw() {
-  let lines = []
+  let lines = this.toLines();
 
-  lines.push('From: ' + this.createMailboxStr(this.senders))
-  lines.push('To: ' + this.createMailboxStr(this.recipients))
-  lines.push('Subject: ' + this.encodedSubject)
-  lines.push('MIME-Version: 1.0')
-  lines.push('Date: ' + this.createDateStr())
-  lines.push('Message-ID: ' + this.createMsgID())
-
-  if (!this.utility.isEmpty(this.attachments)) {
-    lines.push('Content-Type: multipart/mixed; boundary=' + this.boundaryMixed)
-    lines.push('')
-    lines.push('--' + this.boundaryMixed)
-  }
-
-  lines.push(this.message)
-
-  if (!this.utility.isEmpty(this.attachments)) {
-    lines.push(this.attachments)
-    lines.push('--' + this.boundaryMixed + '--')
-  }
-
-  return lines.join('\n')
+  return lines.join('')
 }
 
 MIMEMessage.prototype.asEncoded = function asEncoded() {
@@ -236,5 +218,48 @@ MIMEMessage.prototype.getSenders = function getSenders() {
 MIMEMessage.prototype.getAttachments = function getAttachments() {
   return this.attachments
 }
+
+MIMEMessage.prototype.setHeaders = function setHeaders(headers) {
+  this.headers = headers;
+}
+MIMEMessage.prototype.getHeaders = function getHeaders() {
+  return this.headers;
+}
+
+
+MIMEMessage.prototype.toLines = function toLines() {
+  let lines = []
+  if (this.messageID == null) {
+    this.messageID = this.createMsgID();
+  }
+  lines.push('From: ' + this.createMailboxStr(this.senders) + '\r\n')
+  lines.push('To: ' + this.createMailboxStr(this.recipients) + '\r\n')
+  lines.push('Subject: ' + this.encodedSubject + '\r\n')
+  lines.push('MIME-Version: 1.0\r\n')
+  lines.push('Date: ' + this.createDateStr() + '\r\n')
+  lines.push('Message-ID: ' + this.messageID + '\r\n')
+
+  for(let k in this.headers) {
+    lines.push(k + ': ' + this.headers[k] + '\r\n');
+  }
+
+  if (!this.utility.isEmpty(this.attachments)) {
+    lines.push('Content-Type: multipart/mixed; boundary=' + this.boundaryMixed + '\r\n')
+    lines.push('\r\n')
+    lines.push('--' + this.boundaryMixed + '\r\n')
+  }
+
+  lines.push(this.message)
+  lines.push('\r\n')
+
+  if (!this.utility.isEmpty(this.attachments)) {
+    lines.push(this.attachments + '\r\n')
+    lines.push('--' + this.boundaryMixed + '--' + '\r\n')
+  }
+
+  return lines
+}
+
+
 
 module.exports = MIMEMessage
